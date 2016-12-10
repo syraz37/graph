@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Graph</title>
+	<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/angular.js/1.5.9/angular.min.js"></script>
+	<style type="text/css">
+		td {
+			width: 32px;
+			heigth: 32px;
+			border: solid 1px black;
+		}
+		td.no-entry {
+			background-color: red;
+		}
+		td.start {
+			background-color: yellow !important;
+		}
+		td.end {
+			background-color: green !important;
+		}
+		td.path {
+			background-color: pink;
+		}
+		td.current {
+			background-color: blue;
+		}
+	</style>
+</head>
+<body ng-app="myApp">
+	<div ng-controller="myController">
+
+		<table>
+			<tr ng-repeat="row in graph.nodes">
+				<td ng-repeat="node in row" 
+					ng-class="{
+						'no-entry': !node.adjecent.length,
+						'start': node === startNode,
+						'end': node === endNode,
+						'path': pathLabels.indexOf(node.label) !== -1,
+						'current': node === currentNode
+					}"
+					ng-bind="node.label"></td>
+			</tr>
+		</table>
+	</div>
+
+<script type="text/javascript">
+	function Node() {
+		this.adjecent = [];
+		this.previous = null;
+		this.label = "";
+		this.clear = function() {
+			this.previous = null;
+		}
+	}
+
+	function Graph(grid) {
+		this.rows = grid.length;
+		this.cols = grid[0].length;
+		this.nodes = [];
+
+		for (var r = 0; r < this.rows; r++) {
+			this.nodes.push([]);
+			for(var c = 0; c < this.cols; c++){
+				var node = new Node();
+				node.label = r * this.cols + c;
+				this.nodes[r].push(node);
+			}
+		}
+
+		for (var r = 0; r < this.rows; r++) {
+			for(var c = 0; c < this.cols; c++){
+
+				var node = this.nodes[r][c];
+
+				if(grid[r][c] == 1){
+					continue;
+				}
+
+				// Up
+				if(r > 0){
+					node.adjecent.push(this.nodes[r-1][c]);
+				}
+
+				// Right
+				if(c < this.cols-1){
+					node.adjecent.push(this.nodes[r][c+1]);
+				}
+
+				// Down
+				if(r < this.rows-1){
+					node.adjecent.push(this.nodes[r+1][c]);
+				}
+
+				// Left
+				if(c > 0){
+					node.adjecent.push(this.nodes[r][c-1]);
+				}
+
+			}
+		}
+
+		this.clear = function() {
+			for (var r = 0; r < this.rows; r++) {
+				for(var c = 0; c < this.cols; c++){
+					this.nodes[r][c].clear();
+				}
+			}
+		}
+
+		this.setStartAndEndNode = function(start, goal) {
+
+		}
+	}
+
+	function Search(graph) {
+		this.graph = graph;
+		this.reachable = [];
+		this.explored = [];
+		this.path = [];
+		this.goalNode = null;
+		this.iterations = 0;
+		this.finished = false;
+
+		this.start = function(start, goal){
+			this.reachable = [start];
+			this.goalNode = goal;
+			this.explored = [];
+			this.path = [];
+			iterations = 0;
+
+			this.graph.clear();
+		}
+
+		this.step = function(){
+			if (this.path.length > 0)
+				return;
+
+			if (this.reachable.length == 0) {
+				this.finished = true;
+				return;
+			}
+
+			this.iterations ++;
+
+			var node = this.choseNode ();
+			if (node == this.goalNode) {
+				while(node != null){
+					this.path.unshift(node);
+					node = node.previous;
+				}
+				this.finished = true;
+				return;
+			}
+
+			this.reachable.splice(this.reachable.indexOf(node), 1);
+			this.explored.push(node);
+
+			for (var i = 0; i < node.adjecent.length; i++) {
+				this.addAdjacent(node, node.adjecent[i]);
+			}
+
+			return node;
+		}
+
+		this.choseNode = function(){
+			return this.reachable[Math.floor(Math.random() * this.reachable.length)];
+		}
+
+		this.addAdjacent = function(previousNode, newNode){
+			if (this.explored.indexOf(newNode) !== -1 || this.reachable.indexOf(newNode) !== -1) {
+				return;
+			}
+
+			newNode.previous = previousNode;
+			this.reachable.push(newNode);
+		}
+	}
+
+	var map = [
+		[0,0,0,0,0,0],
+		[0,1,0,1,0,0],
+		[0,1,0,1,1,0],
+		[0,1,0,0,0,0],
+		[0,1,0,0,0,0],
+		[0,0,0,0,0,0]
+	]
+
+	angular.module('myApp', []).controller('myController', function($scope, $interval){
+
+		$scope.message = 'Hello!!';
+
+		$scope.graph = new Graph (map);
+
+		var search = new Search ($scope.graph);
+
+		$scope.startNode = $scope.graph.nodes[0][0],
+		$scope.endNode = $scope.graph.nodes[5][5],
+
+		$scope.pathLabels = [];
+
+		search.start($scope.startNode, $scope.endNode);
+
+		var stopInterval = $interval(function() {
+			$scope.currentNode = search.step();
+			if(search.finished) {
+				$scope.pathLabels = search.path.map(function(node) {
+					return node.label;
+				});
+				$interval.cancel(stopInterval);
+			}
+		}, 300);
+
+
+		console.log("Search done. Path length " + search.path.length + " iterations " + search.iterations);
+	});
+
+</script>
+</body>
+</html>
